@@ -7,7 +7,6 @@ CREATE TABLE customers (
 CREATE TABLE orders (
   id BIGINT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
   customer_id BIGINT NOT NULL,
-  FOREIGN KEY (customer_id) REFERENCES customers(id),
   date DATE
 );
 
@@ -20,9 +19,7 @@ CREATE TABLE products (
 CREATE TABLE order_items (
   id BIGINT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
   order_id BIGINT NOT NULL,
-  FOREIGN KEY (order_id) REFERENCES orders(id),
   product_id BIGINT NOT NULL,
-  FOREIGN KEY (product_id) REFERENCES products(id),
   quantity INTEGER NOT NULL
 );
 

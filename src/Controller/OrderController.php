@@ -7,8 +7,7 @@ use PDO;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Exception\InvalidParameterException;
 
 class OrderController extends AbstractController
 {
@@ -17,7 +16,10 @@ class OrderController extends AbstractController
 
     public function __construct()
     {
-        $this->database = new \PDO('mysql:host=localhost:3306;dbname=order_system', 'root', '');
+        $userName = 'root';
+        $password = 'original_cottages_test';
+
+        $this->database = new \PDO('mysql:host=localhost:3306;dbname=order_system', $userName, $password);
     }
 
     /**
@@ -79,23 +81,46 @@ class OrderController extends AbstractController
      */
     public function addOrder(Request $request)
     {
-        $customerId = $request->get('customerId');
-        $selectedProducts = $request->get('products');
+        if (!$customerId = $request->get('customerId')) {
+            throw new InvalidParameterException('A customer Id must be supplied');
+        }
 
-        $orderInsert = $this->database->prepare('
+        if (!$selectedProducts = $request->get('products')) {
+            throw new InvalidParameterException('Products must be provided');
+        }
+
+        $this->database->beginTransaction();
+
+        try {
+
+            $orderInsert = $this->database->prepare('
             INSERT INTO orders (customer_id, date) VALUES (?, ?);
         ');
 
-        $orderInsert->execute([$customerId, 'NOW()']);
-        $orderId = $this->database->lastInsertId();
+            $orderInsert->execute([$customerId, 'NOW()']);
+            $orderId = $this->database->lastInsertId();
 
-        foreach ($selectedProducts as $selectedProduct) {
-            $orderItem = $this->database->prepare('
+            foreach ($selectedProducts as $selectedProduct) {
+                $orderItem = $this->database->prepare('
                 INSERT INTO order_items (order_id, product_id, quantity) VALUES (?, ?, ?);
             ');
 
-            $orderItem->execute([$orderId, $selectedProduct['productId'], $selectedProduct['quantity']]);
+                $orderItem->execute([$orderId, $selectedProduct['productId'], $selectedProduct['quantity']]);
+            }
+
+        } catch (\Exception $e) {
+            $this->database->rollBack();
         }
+
+        $this->database->commit();
+
+        $data = new JsonResponse([
+            'success' => true
+        ]);
+
+        $data->headers->set('Access-Control-Allow-Origin', '*');
+
+        return $data;
     }
 
     /**
